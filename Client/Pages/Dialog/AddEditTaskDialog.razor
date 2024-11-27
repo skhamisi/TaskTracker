@@ -1,0 +1,105 @@
+﻿@inject ITaskService TaskService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4" MaxWidth="MaxWidth.Medium" Style="width: 500px;">
+    @if(Task == null)
+    {
+        <MudText Typo="Typo.h6" Style="margin-bottom:20px;">Add Task</MudText>
+    }
+    else
+    {
+        <MudText Typo="Typo.h6" Style="margin-bottom:20px;">Edit Task</MudText>
+    }
+        <MudForm @bind-IsValid="isValid">
+            <MudTextField @bind-Value="taskDto.Title" Label="Title" Required="true" FullWidth="true" />
+            <MudTextField @bind-Value="taskDto.Description" Label="Description" FullWidth="true" />
+            <MudSelect T="int?" @bind-Value="taskDto.ProjectId" Label="Project" Required="true" FullWidth="true">
+                @foreach (var project in Projects)
+                {
+                    <MudSelectItem T="int?" Value="@(project.Id)">@project.ProjectName</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="string" @bind-Value="taskDto.AssignedToUserId" Label="Assigned To" Required="true" FullWidth="true">
+                @foreach (var user in Users)
+                {
+                    <MudSelectItem Value="@user.Id">@user.UserName</MudSelectItem>
+                }
+            </MudSelect>
+          
+            @if (Task != null)
+            {
+                <MudNumericField @bind-Value="taskDto.Progress" Label="Progress (%)" Min="0" Max="100" Step="1" FullWidth="true" />
+                <MudCheckBox T="bool" @bind-Value="taskDto.IsCompleted" Label="Completed" />
+            }
+        </MudForm>
+    <MudButton Style="margin-top:20px;" OnClick="Cancel" Color="Color.Error" Variant="Variant.Text">Cancel</MudButton>
+    <MudButton Style="margin-top:20px;" OnClick="Save" Disabled="!isValid" Color="Color.Success" Variant="Variant.Text">Save</MudButton>
+</MudPaper>
+
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public TaskDto Task { get; set; }
+    [Parameter] public List<ProjectDto> Projects { get; set; }
+    [Parameter] public List<UserDto> Users { get; set; }
+
+    private TaskDto taskDto = new();
+    private bool isValid;
+
+    protected override void OnInitialized()
+    {
+        if (Task != null)
+        {
+            taskDto = new TaskDto
+            {
+                Id = Task.Id,
+                Title = Task.Title,
+                Description = Task.Description,
+                ProjectId = Task.ProjectId,
+                AssignedToUserId = Task.AssignedToUserId,
+                Progress = Task.Progress,
+                IsCompleted = Task.IsCompleted
+            };
+        }
+        else
+        {
+            taskDto = new TaskDto();
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Save()
+    {
+        var assignedUser = Users.FirstOrDefault(u => u.Id == taskDto.AssignedToUserId);
+
+        if (assignedUser != null)
+        {
+            taskDto.AssignedToUserName = assignedUser.UserName;
+        }
+
+        try
+        {
+            if (Task == null)
+            {
+                await TaskService.CreateTaskAsync(taskDto);
+                Snackbar.Add("Task created successfully", Severity.Success);
+            }
+            else
+            {
+                await TaskService.UpdateTaskAsync(taskDto.Id, taskDto);
+                Snackbar.Add("Task updated successfully", Severity.Success);
+            }
+
+            MudDialog.Close();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

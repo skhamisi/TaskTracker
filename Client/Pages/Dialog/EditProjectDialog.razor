@@ -1,0 +1,23 @@
+﻿
+<MudPaper Class="pa-4" MaxWidth="MaxWidth.Medium" Style="width: 500px;">
+    <MudText Typo="Typo.h6" Style="margin-bottom:20px;">Edit Project</MudText>
+    <MudTextField Label="Project Name" @bind-Value="ProjectName" />
+    <MudButton Color="Color.Secondary" OnClick="Save" Style="margin-top: 20px;">Update</MudButton>
+    <MudButton Color="Color.Error" OnClick="Cancel" Style="margin-top: 20px;">Cancel</MudButton>
+</MudPaper>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public string ProjectName { get; set; }
+
+    private void Save()
+    {
+        MudDialog.Close(DialogResult.Ok(ProjectName));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

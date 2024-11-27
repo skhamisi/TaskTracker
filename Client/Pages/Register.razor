@@ -1,0 +1,174 @@
+﻿@page "/users"
+@attribute [Authorize]
+
+@inject IAuthService AuthService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudContainer>
+    <MudText Typo="Typo.h4" Style="@($"color:{Theme.PaletteLight.DarkContrastText}; margin-top:{70}px;")">Account Management</MudText>
+    @if (isAdmin)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddUserDialog" Color="Color.Warning" Variant="Variant.Filled" Style="margin-top:20px;">Add User</MudButton>
+    }
+</MudContainer>
+
+<MudContainer Style="margin-top:20px;">
+    <MudTable Items="usersToDisplay" Hover="true" Dense="true" Style="@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")">
+        <HeaderContent>
+            <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Username</MudTh>
+            @if (isAdmin)
+            {
+                <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Admin</MudTh>
+            }
+            <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Username" Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.UserName</MudTd>
+            @if (isAdmin)
+            {
+                <MudTd DataLabel="Is Admin" Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.IsAdmin</MudTd>
+            }
+            <MudTd DataLabel="Actions">
+                <MudButton StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditUserDialog(@context))" Color="Color.Primary" Variant="Variant.Text">Edit</MudButton>
+                @if (isAdmin && @context.Id != currentUserId)
+                {
+                    <MudButton StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDeleteConfirmationDialog(@context.Id))" Color="Color.Error" Variant="Variant.Text">Delete</MudButton>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private MudTheme Theme = new MudTheme();
+
+    private string currentUserId;
+    private bool isAdmin;
+    private List<UserDto> users = new List<UserDto>();
+    private List<UserDto> usersToDisplay = new List<UserDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUserId = await AuthService.GetUserIdFromTokenAsync();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        isAdmin = user.IsInRole("Admin");
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        var response = await AuthService.GetUsersAsync();
+        if (response.Success)
+        {
+            users = response.Data;
+            usersToDisplay = isAdmin ? users : users.Where(u => u.Id == currentUserId).ToList();
+        }
+        else
+        {
+            Snackbar.Add(response.Message, Severity.Error);
+        }
+    }
+
+    private void OpenAddUserDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseButton = true, 
+            MaxWidth = MaxWidth.Medium,
+            NoHeader = true
+        };
+        var dialog = DialogService.Show<AddUserDialog>(null, options);
+
+        dialog.Result.ContinueWith(async result =>
+        {
+            if (!result.Result.Canceled)
+            {
+                var newUser = (UserDto)result.Result.Data;
+                var response = await AuthService.RegisterAsync(newUser);
+                if (response.Success)
+                {
+                    await LoadUsers();
+                    Snackbar.Add("User added successfully.", Severity.Success);
+                    await InvokeAsync(StateHasChanged);
+                }
+                else
+                {
+                    Snackbar.Add(response.Message, Severity.Error);
+                }
+            }
+        });
+    }
+
+    private async Task OpenEditUserDialog(UserDto user)
+    {
+        if (!isAdmin && user.Id != currentUserId) return;
+
+        var parameters = new DialogParameters 
+        { 
+            { "User", new UserDto(user) },
+            { "isAdmin", isAdmin }
+        };
+        var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Large,
+                CloseButton = true,
+                BackdropClick = true,
+                NoHeader = true
+            };
+
+        var dialog = DialogService.Show<EditUserDialog>(null, parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            var updatedUser = (UserDto)result.Data;
+
+            UpdateUserDto newUpdateUserInfo = new UpdateUserDto()
+                {
+                    Id = updatedUser.Id,
+                    UserName = updatedUser.UserName,
+                    Password = updatedUser.Password,
+                    IsAdmin = updatedUser.IsAdmin
+                };
+
+            var response = await AuthService.UpdateUserAsync(newUpdateUserInfo);
+            if (response.Success)
+            {
+                await LoadUsers();
+                Snackbar.Add("User updated successfully.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenDeleteConfirmationDialog(string userId)
+    {
+        if (!isAdmin) return;
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, CloseButton = true, BackdropClick = true };
+
+        var dialog = DialogService.Show<DeleteUserConfirmationDialog>("Delete User", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var response = await AuthService.DeleteUserAsync(userId);
+            if (response.Success)
+            {
+                await LoadUsers();
+                Snackbar.Add("User deleted successfully.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(response.Message, Severity.Error);
+            }
+        }
+    }
+}

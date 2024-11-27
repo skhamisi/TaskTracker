@@ -1,0 +1,30 @@
+﻿@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4" MaxWidth="MaxWidth.Medium" Style="width: 500px;">
+    <MudText Typo="Typo.h6">Add New User</MudText>
+    <MudTextField Label="Username" @bind-Value="NewUser.UserName" FullWidth="true" />
+    <MudTextField Label="Password" @bind-Value="NewUser.Password" InputType="InputType.Password" FullWidth="true" />
+    <MudCheckBox T="bool" @bind-Checked="NewUser.IsAdmin">Admin User</MudCheckBox>
+
+    <MudButton Style="margin-top:20px;" OnClick="Save" Color="Color.Success">Save</MudButton>
+    <MudButton Style="margin-top:20px;" OnClick="Cancel" Color="Color.Error">Cancel</MudButton>
+</MudPaper>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public UserDto NewUser { get; set; } = new UserDto();
+
+    private void Save()
+    {
+        if (string.IsNullOrWhiteSpace(NewUser.UserName) || string.IsNullOrWhiteSpace(NewUser.Password))
+        {
+            Snackbar.Add("Username and Password are required.", Severity.Error);
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(NewUser));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
+
+

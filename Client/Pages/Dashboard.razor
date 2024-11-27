@@ -1,0 +1,290 @@
+﻿@page "/dashboard"
+@attribute [Authorize]
+
+@inject ITaskService TaskService
+@inject IProjectService ProjectService
+@inject IUserService UserService
+@inject INotificationService NotificationService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudContainer>
+    <MudText Typo="Typo.h4" Style="@($"color:{Theme.PaletteLight.DarkContrastText}; margin-top: 70px;")">Dashboard</MudText>
+
+    <!-- Notifications Section -->
+    <MudCard Style="@($"color:{Theme.PaletteLight.DarkContrastText}; background-color: transparent; margin-top: 20px;")">
+        <MudCardContent>
+            <MudText Typo="Typo.h6">Notifications</MudText>
+            @if (notifications == null || !notifications.Any())
+            {
+                <MudText Style="color: orange">No notifications.</MudText>
+            }
+            else
+            {
+                <MudList T="NotificationDto" Dense="true" Style="background-color: transparent;">
+                    @foreach (var notification in notifications)
+                    {
+                        <MudListItem>
+                            <MudText>@notification.Message</MudText>
+                            <MudText Typo="Typo.caption">@notification.CreatedAt.ToString("g")</MudText>
+                            @if (!notification.IsRead)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.MarkEmailUnread" Color="Color.Primary" OnClick="() => MarkNotificationAsRead(notification.Id)" />
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.MarkEmailRead" Disabled="true" />
+                            }
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteNotification(notification.Id))" />
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudCardContent>
+    </MudCard>
+
+    <!-- Admin View -->
+    @if (isAdmin)
+    {
+        <MudCard Style="@($"color:{Theme.PaletteLight.DarkContrastText}; background-color: transparent; margin-top: 20px;")">
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Style="margin-bottom: 5px;">Projects</MudText>
+                @if (projects == null || !projects.Any(p => (p.OverallProgress ?? 0) < 100))
+                {
+                    <MudText Style="color: orange">There are no projects with tasks assigned.</MudText>
+                }
+                else
+                {
+                    @foreach (var project in projects.Where(p => (p.OverallProgress ?? 0) < 100))
+                    {
+                        <MudExpansionPanel Style=@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")
+                                           Text="@($"{project.ProjectName} : {project.OverallProgress ?? 0}%")">
+                            @if (project.Tasks == null || !project.Tasks.Any())
+                            {
+                                <MudText Style="color: orange;">No tasks assigned to this project.</MudText>
+                            }
+                            else
+                            {
+                                <MudTable Style="@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")" Items="@project.Tasks">
+                                    <HeaderContent>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Task Title</MudTh>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Assigned To</MudTh>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Progress</MudTh>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Status</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Title</MudTd>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@GetUserName(context.AssignedToUserId)</MudTd>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Progress %</MudTd>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@(context.IsCompleted ? "Completed" : "In Progress")</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            }
+                        </MudExpansionPanel>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+    else
+    {
+        <!-- User View -->
+        <MudCard Style="@($"color:{Theme.PaletteLight.DarkContrastText}; background-color: transparent; margin-top: 20px;")">
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Style="margin-bottom: 5px;">Projects</MudText>
+                @if (userProjects == null || !userProjects.Any(p => (p.OverallProgress ?? 0) < 100))
+                {
+                    <MudText Style="color: orange">No projects available.</MudText>
+                }
+                else
+                {
+                    @foreach (var project in userProjects.Where(p => (p.OverallProgress ?? 0) < 100))
+                    {
+                        <MudExpansionPanel Style="@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")" Text="@project.ProjectName">
+                            @if (project.Tasks == null || !project.Tasks.Any())
+                            {
+                                <MudText>No tasks assigned to this project.</MudText>
+                            }
+                            else
+                            {
+                                <MudTable Style="@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")" Items="@project.Tasks">
+                                    <HeaderContent>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Task Title</MudTh>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Progress</MudTh>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Status</MudTh>
+                                        <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Actions</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Title</MudTd>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Progress %</MudTd>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@(context.IsCompleted ? "Completed" : "In Progress")</MudTd>
+                                        <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">
+                                            @if (!context.IsCompleted)
+                                            {
+                                                <MudButton OnClick="@(async () => await CompleteTask(context.Id))" Color="Color.Success">Complete</MudButton>
+                                            }
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            }
+                        </MudExpansionPanel>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    private MudTheme Theme = new MudTheme();
+
+    private List<TaskDto> tasks = new List<TaskDto>();
+    private List<ProjectDto> projects = new List<ProjectDto>();
+    private List<ProjectDto> userProjects = new List<ProjectDto>();
+    private List<NotificationDto> notifications = new List<NotificationDto>();
+    private List<UserDto> users = new List<UserDto>();
+    private bool isAdmin = false;
+    private string? userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user != null && user.Identity != null)
+        {
+            if (user.Identity.IsAuthenticated)
+            {
+                userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                isAdmin = user.IsInRole("Admin");
+
+                await LoadNotifications();
+
+                if (isAdmin)
+                {
+                    await LoadAdminData();
+                }
+                else
+                {
+                    await LoadUserData();
+                }
+            }
+            else
+            {
+                NavManager.NavigateTo("/login");
+            }
+        }
+    }
+
+    private async Task LoadNotifications()
+    {
+        try
+        {
+            if (userId != null)
+            {
+                notifications = await NotificationService.GetNotificationsByUserIdAsync(userId) ?? new List<NotificationDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading notifications: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task MarkNotificationAsRead(int notificationId)
+    {
+        try
+        {
+            await NotificationService.MarkAsReadAsync(notificationId);
+            await LoadNotifications();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error marking notification as read: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteNotification(int notificationId)
+    {
+        try
+        {
+            await NotificationService.DeleteNotificationAsync(notificationId);
+            await LoadNotifications();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting notification: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadAdminData()
+    {
+        try
+        {
+            projects = await ProjectService.GetAllProjectsAsync();
+            tasks = await TaskService.GetAllTasksAsync();
+            users = await UserService.GetAllUsersAsync();
+
+            foreach (var project in projects)
+            {
+                project.Tasks = tasks.Where(t => t.ProjectId == project.Id).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading admin data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadUserData()
+    {
+        try
+        {
+            tasks = await TaskService.GetTasksByCurrentUserAsync();
+            users = await UserService.GetAllUsersAsync();
+
+            var projectIds = tasks.Select(t => t.ProjectId).Distinct().ToList();
+            userProjects = new List<ProjectDto>();
+
+            foreach (var projectId in projectIds)
+            {
+                if (projectId.HasValue)
+                {
+                    var project = await ProjectService.GetProjectByIdAsync(projectId.Value);
+                    if (project != null)
+                    {
+                        project.Tasks = tasks.Where(t => t.ProjectId == projectId && t.AssignedToUserId == userId).ToList();
+                        userProjects.Add(project);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading user data: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private string GetUserName(string assignedUserId)
+    {
+        var user = users.FirstOrDefault(u => u.Id == assignedUserId);
+        return user?.UserName ?? "N/A";
+    }
+
+    private async Task CompleteTask(int taskId)
+    {
+        try
+        {
+            await TaskService.CompleteTaskAsync(taskId);
+            await LoadUserData();
+            Snackbar.Add("Task marked as complete", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error completing task: {ex.Message}", Severity.Error);
+        }
+    }
+}

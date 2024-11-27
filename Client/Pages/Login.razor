@@ -1,0 +1,74 @@
+﻿@page "/login"
+@layout MinimalLayout
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<MudContainer>
+    <MudContainer>
+        <MudStack AlignItems="AlignItems.Center">
+            <MudImage Src="/images/logo.png" Alt="Task Tracker Logo" Style="height: 50px;" />
+            <MudText Typo="Typo.h3" Style="@textColor">Task Tracker</MudText>
+        </MudStack>
+    </MudContainer>
+    
+    @if (!isAuthenticated)
+    {
+        <MudTextField Style="@textColor" Label="Username" @bind-Value="username" Required="true" />
+        <MudTextField Style="@textColor" Label="Password" @bind-Value="password" InputType="InputType.Password" Required="true" />
+
+        <MudButton OnClick="LogInUser" Color="Color.Warning" Variant="Variant.Filled" Style="margin-top: 20px;" StartIcon="@Icons.Material.Filled.Login" FullWidth="true">Login</MudButton>
+
+        @if (!string.IsNullOrEmpty(loginError))
+        {
+            <MudText Typo="Typo.body1" Color="Color.Error">@loginError</MudText>
+        }
+    }
+</MudContainer>
+
+@code {
+    private MudTheme Theme = new MudTheme();
+    private string? username;
+    private string? password;
+    private string? loginError;
+    private bool isAuthenticated;
+    private string? textColor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        textColor = $"color: {Theme.PaletteLight.DarkContrastText};";
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        if (authState.User.Identity != null)
+        {
+            isAuthenticated = authState.User.Identity.IsAuthenticated;
+        }
+
+        if (isAuthenticated)
+        {
+            Navigation.NavigateTo("/dashboard");
+        }
+    }
+
+    private async Task LogInUser()
+    {
+        var loginRequest = new LoginRequest
+        {
+            Username = username,
+            Password = password
+        };
+
+        var result = await AuthService.LoginAsync(loginRequest);
+
+        if (result.Success == true)
+        {
+            Navigation.NavigateTo("/dashboard");
+        }
+        else
+        {
+            loginError = "Invalid login credentials. Please try again.";
+        }
+    }
+}

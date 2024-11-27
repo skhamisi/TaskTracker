@@ -1,0 +1,35 @@
+﻿@inherits LayoutComponentBase
+
+<div class="login-layout">
+    <div class="login-container">
+        @Body
+    </div>
+</div>
+
+<style>
+    .login-layout {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-image: url('/images/background.jpg');
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: cover;
+        background-attachment: fixed;
+        opacity: 0.9;
+        position: relative;
+    }
+
+    .login-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        background-color: transparent;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        margin-top: -250px; /* Move content up slightly */
+    }
+</style>

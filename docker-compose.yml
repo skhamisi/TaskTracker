@@ -1,0 +1,21 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: MSSQL-2022
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Password1234!
+    ports:
+      - "1433:1433"
+    volumes:
+      - db-data:/var/opt/mssql
+    restart: unless-stopped
+  tasktracker:
+    image: tasktrackerdev:latest
+    container_name: webapp
+    environment: 
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - 5168:80
+volumes:
+  db-data:

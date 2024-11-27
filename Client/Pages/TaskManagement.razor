@@ -1,0 +1,325 @@
+﻿@page "/tasks"
+@attribute [Authorize]
+
+@inject ITaskService TaskService
+@inject IProjectService ProjectService
+@inject IUserService UserService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudContainer>
+    <MudText Typo="Typo.h4" Style="@($"color:{Theme.PaletteLight.DarkContrastText}; margin-top:70px;")">Task Management</MudText>
+
+    @if (isAdmin)
+    {
+        <MudButton OnClick="OpenAddTaskDialog" StartIcon="@Icons.Material.Filled.Add" Color="Color.Warning" Variant="Variant.Filled" Style="margin-bottom: 20px;margin-top: 20px;">Add Task</MudButton>
+    }
+@*     <MudSelect Style="@($"color:{Theme.PaletteLight.DarkContrastText}; margin-bottom:20px;")"
+               T="int?"
+               @bind-Value="selectedProjectId"
+               @bind-Value:event="onchange"
+               Label="Filter by Project">
+        <MudSelectItem T="int?" Value="@null">All Projects</MudSelectItem>
+        @foreach (var project in projects)
+        {
+            <MudSelectItem T="int?" Value="@project.Id">@project.ProjectName</MudSelectItem>
+        }
+    </MudSelect> *@
+
+
+    <!-- In Progress Tasks Card -->
+    <MudCard Style="background-color: transparent; margin-top:20px;">
+        <MudCardContent>
+            <MudText Typo="Typo.h6" Style="@($"color:{Theme.PaletteLight.DarkContrastText}; background-color: transparent;")">Active Tasks</MudText>
+            @if (tasks == null || !tasks.Any(t => !t.IsCompleted))
+            {
+                <MudText Style="color: orange">No tasks available.</MudText>
+            }
+            else
+            {
+                var inProgressTasks = tasks.Where(t => !t.IsCompleted).GroupBy(t => t.ProjectId).ToList();
+
+                @foreach (var group in inProgressTasks)
+                {
+                    var projectName = GetProjectName(group.Key);
+                    <MudExpansionPanel Text="@projectName" Style=@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")>
+                        <MudTable Items="@group.ToList()" Hover="true" Style="@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")">
+                            <HeaderContent>
+                                <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Title</MudTh>
+                                <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Assigned To</MudTh>
+                                <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Progress</MudTh>
+                                <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Status</MudTh>
+                                <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Title</MudTd>
+                                <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@GetUserName(context.AssignedToUserId)</MudTd>
+                                <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Progress %</MudTd>
+                                <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">In Progress</MudTd>
+                                <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">
+                                    <MudButton OnClick="@(() => CompleteTask(context.Id))" Color="Color.Success">Complete</MudButton>
+                                    @if (isAdmin)
+                                    {
+                                        <MudButton OnClick="@(() => OpenEditTaskDialog(context))" Color="Color.Primary">Edit</MudButton>
+                                        <MudButton OnClick="@(() => ShowDeleteConfirmationDialog(context.Id, context.Title))" Color="Color.Error">Delete</MudButton>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudExpansionPanel>
+                }
+            }
+        </MudCardContent>
+    </MudCard>
+
+    <!-- Completed Tasks Card -->
+    @if (isAdmin)
+    {
+        <MudCard Style="background-color: transparent; margin-top: 20px;">
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Style="@($"color:{Theme.PaletteLight.DarkContrastText}; background-color: transparent;")">Completed Tasks</MudText>
+                @if (tasks == null || !tasks.Any(t => t.IsCompleted))
+                {
+                    <MudText Style="color: orange">No completed tasks available.</MudText>
+                }
+                else
+                {
+                    var completedTasks = tasks.Where(t => t.IsCompleted).GroupBy(t => t.ProjectId).ToList();
+
+                    @foreach (var group in completedTasks)
+                    {
+                        var projectName = GetProjectName(group.Key);
+                        <MudExpansionPanel Text="@projectName" Style=@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")>
+                            <MudTable Items="@group.ToList()" Hover="true" Style="@($"color: {Theme.PaletteLight.DarkContrastText}; background-color: #292c33; border: 1px solid rgba(0, 0, 0, 0.3); border-radius: 8px;")">
+                                <HeaderContent>
+                                    <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Title</MudTh>
+                                    <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Assigned To</MudTh>
+                                    <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Progress</MudTh>
+                                    <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Status</MudTh>
+                                    <MudTh Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Actions</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Title</MudTd>
+                                    <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@GetUserName(context.AssignedToUserId)</MudTd>
+                                    <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">@context.Progress %</MudTd>
+                                    <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">Completed</MudTd>
+                                    <MudTd Style="@($"color: {Theme.PaletteLight.DarkContrastText};")">
+                                        @if (isAdmin)
+                                        {
+                                            <MudButton OnClick="@(() => OpenEditTaskDialog(context))" Color="Color.Primary">Edit</MudButton>
+                                            <MudButton OnClick="@(() => ShowDeleteConfirmationDialog(context.Id, context.Title))" Color="Color.Error">Delete</MudButton>
+                                        }
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudExpansionPanel>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    private MudTheme Theme = new MudTheme();
+
+    private List<TaskDto> tasks = new();
+    private List<ProjectDto> projects = new();
+    private List<UserDto> users = new();
+    private bool isAdmin = false;
+    private string? currentUserId;
+    private int? selectedProjectId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        isAdmin = user.IsInRole("Admin");
+
+        await LoadProjects();
+
+        if (isAdmin)
+        {
+            await LoadUsers();
+        }
+
+        await LoadTasks();
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            var allProjects = await ProjectService.GetAllProjectsAsync();
+            var allTasks = await TaskService.GetTasksByCurrentUserAsync();
+
+            if (isAdmin)
+            {
+                projects = allProjects;
+            }
+            else
+            {
+                var projectIdsWithAssignedTasks = allTasks.Select(t => t.ProjectId).Distinct().ToList();
+                projects = allProjects.Where(p => projectIdsWithAssignedTasks.Contains(p.Id)).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading projects: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            users = await UserService.GetAllUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading users: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        try
+        {
+            if (isAdmin)
+            {
+                tasks = await TaskService.GetAllTasksAsync();
+            }
+            else
+            {
+                var allTasks = await TaskService.GetTasksByCurrentUserAsync();
+
+                tasks = allTasks
+                    .Where(t => (selectedProjectId == null || t.ProjectId == selectedProjectId) &&
+                                (!t.IsCompleted || t.AssignedToUserId == currentUserId))
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading tasks: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CompleteTask(int taskId)
+    {
+        try
+        {
+            await TaskService.CompleteTaskAsync(taskId);
+            Snackbar.Add("Task marked as complete", Severity.Success);
+            await LoadTasks();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ShowDeleteConfirmationDialog(int taskId, string taskTitle)
+    {
+        var parameters = new DialogParameters { ["TaskTitle"] = taskTitle };
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            NoHeader = true
+        };
+        var dialog = DialogService.Show<DeleteTaskConfirmationDialog>("Delete Task", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await DeleteTask(taskId);
+        }
+    }
+
+    private async Task DeleteTask(int taskId)
+    {
+        try
+        {
+            await TaskService.DeleteTaskAsync(taskId);
+            Snackbar.Add("Task deleted successfully", Severity.Success);
+            await LoadTasks();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void OpenAddTaskDialog()
+    {
+        var parameters = new DialogParameters
+            {
+                ["Projects"] = projects,
+                ["Users"] = users
+            };
+        var options = new DialogOptions 
+        { 
+            CloseButton = true, 
+            MaxWidth = MaxWidth.Medium,
+            NoHeader = true
+        };
+        var dialog = DialogService.Show<AddEditTaskDialog>(null, parameters, options);
+
+        dialog.Result.ContinueWith(async result =>
+        {
+            if (!result.Result.Canceled)
+            {
+                await LoadTasks();
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    private void OpenEditTaskDialog(TaskDto task)
+    {
+        var parameters = new DialogParameters
+            {
+                ["Task"] = task,
+                ["Projects"] = projects,
+                ["Users"] = users
+            };
+        var options = new DialogOptions 
+        { 
+            CloseButton = true, 
+            MaxWidth = MaxWidth.Medium,
+            NoHeader = true
+        };
+        var dialog = DialogService.Show<AddEditTaskDialog>(null, parameters, options);
+
+        dialog.Result.ContinueWith(async result =>
+        {
+            if (!result.Result.Canceled)
+            {
+                await LoadTasks();
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    private async Task OnProjectChanged(int? projectId)
+    {
+        selectedProjectId = projectId;
+        await LoadTasks();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetProjectName(int? projectId)
+    {
+        var project = projects.FirstOrDefault(p => p.Id == projectId);
+        return project != null ? project.ProjectName : "N/A";
+    }
+
+    private string GetUserName(string userId)
+    {
+        var user = users.FirstOrDefault(u => u.Id == userId);
+        return user != null ? user.UserName : "N/A";
+    }
+}

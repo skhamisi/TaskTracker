@@ -1,0 +1,131 @@
+﻿@inherits LayoutComponentBase
+
+@inject IAuthService AuthService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudLayout>
+    <MudAppBar Elevation="4" Dense="true" Style="@($"color:{Theme.PaletteLight.WarningLighten}; background:{Theme.PaletteLight.Black};")">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="ToggleDrawer" Edge="Edge.Start" Color="Color.Inherit" />
+        <MudText Typo="Typo.h6">Task Tracker</MudText>
+        <MudSpacer />
+
+        <MudMenu AnchorOrigin="Origin.TopRight" TransformOrigin="Origin.TopRight" Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Warning">
+            @if (isAuthenticated)
+            {
+                <MudMenuItem Disabled="true" Icon="@Icons.Material.Filled.VerifiedUser" IconColor="Color.Primary">Logged in as: @userName</MudMenuItem>
+                <MudMenuItem OnClick="Logout" Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error">Logout</MudMenuItem>
+            }
+            else
+            {
+                <MudMenuItem OnClick="Login">Login</MudMenuItem>
+            }
+        </MudMenu>
+    </MudAppBar>
+
+    <MudDrawer Open="@drawerOpen" Breakpoint="Breakpoint.Md" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Responsive" Style="@($"color:{Theme.PaletteLight.DrawerBackground}; background:{Theme.PaletteLight.Black};")">
+        <MudNavMenu>
+            <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.SpaceDashboard">Dashboard</MudNavLink>
+            <MudNavLink Href="/tasks" Icon="@Icons.Material.Filled.Task">Tasks</MudNavLink>
+            @if (isAdmin)
+            {
+                <MudNavLink Href="/projects" Icon="@Icons.Material.Filled.List">Projects</MudNavLink>
+            }
+            <MudNavLink Href="/users" Icon="@Icons.Material.Filled.ManageAccounts">Account Management</MudNavLink>
+        </MudNavMenu>
+
+        <MudContainer Class="mt-4">
+            <MudText Typo="Typo.caption" Align="Align.Left">© 2024 Task Tracker<MudFlexBreak />Author: S. Khamisi</MudText>
+        </MudContainer>
+    </MudDrawer>
+
+    <MudMainContent Class="mud-main-content" Style="padding: 0 1rem; overflow-y: auto;">
+        @Body
+    </MudMainContent>
+
+    <MudPopoverProvider />
+</MudLayout>
+
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@code {
+    private MudTheme Theme = new MudTheme();
+
+    private bool isAuthenticated;
+    private string userName = "Guest";
+    private bool isAdmin;
+    private bool drawerOpen = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await UpdateAuthenticationState();
+    }
+
+    private void ToggleDrawer()
+    {
+        drawerOpen = !drawerOpen;
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        await UpdateAuthenticationState();
+        StateHasChanged();
+    }
+
+    private async Task UpdateAuthenticationState()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user != null && user.Identity != null && user.Identity.Name != null)
+            {
+                isAuthenticated = user.Identity.IsAuthenticated;
+                userName = isAuthenticated ? user.Identity.Name : "Guest";
+                isAdmin = isAuthenticated && user.IsInRole("Admin");
+            }
+
+            if (isAuthenticated && Navigation.Uri == Navigation.ToAbsoluteUri("/login").ToString())
+            {
+                var returnUrl = await JS.InvokeAsync<string>("localStorage.getItem", "returnUrl");
+                if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    Navigation.NavigateTo(returnUrl);
+                    await JS.InvokeVoidAsync("localStorage.removeItem", "returnUrl");
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            throw new Exception($"Could not get authentication state: {e.Message}");
+        }
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login");
+        await UpdateAuthenticationState();
+    }
+
+    private async Task Login()
+    {
+        var currentUrl = Navigation.Uri;
+        await JS.InvokeVoidAsync("localStorage.setItem", "returnUrl", currentUrl);
+
+        if (Navigation.Uri != Navigation.ToAbsoluteUri("/login").ToString())
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

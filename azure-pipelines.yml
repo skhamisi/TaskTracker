@@ -1,0 +1,29 @@
+pool:
+  -name: "Default"
+
+trigger:
+- master
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: '4105ecdb-61e3-4651-939e-1c3844fe9ea6'
+  imageRepository: 'tasktracker'
+  containerRegistry: 'csuprojectimages.azurecr.io'
+  dockerfilePath: '**/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    steps:
+    - task: Docker@2
+      displayName: Build and push an image to container registry
+      inputs:
+        containerRegistry: 'csuprojectimages'
+        repository: '$(imageRepository)'
+        command: 'buildAndPush'
+        Dockerfile: '**/Dockerfile'
+        tags: '$(tag)'

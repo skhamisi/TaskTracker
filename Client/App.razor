@@ -1,0 +1,72 @@
+﻿@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <Authorizing>
+                    <MudText Typo="Typo.h5" Align="Align.Center">Authorizing...</MudText>
+                </Authorizing>
+                <NotAuthorized>
+                    @* Redirect to login if the user is not authenticated *@
+                    @if (!isAuthenticated)
+                    {
+                        <MudText Typo="Typo.h6" Align="Align.Center">You are not authorized to view this page.</MudText>
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <MudText Typo="Typo.h5" Align="Align.Center">Sorry, there’s nothing at this address.</MudText>
+            <MudButton Href="/dashboard" Color="Color.Primary" Variant="Variant.Filled">Back to Dashboard</MudButton>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+<MudThemeProvider Theme="MyCustomTheme" />
+
+@code {
+    MudTheme MyCustomTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = Colors.Blue.Default,
+            Secondary = Colors.Green.Accent4,
+            AppbarBackground = Colors.Red.Default,
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = Colors.Blue.Lighten1
+        },
+
+        LayoutProperties = new LayoutProperties()
+        {
+            DrawerWidthLeft = "260px",
+            DrawerWidthRight = "300px"
+        }
+    };
+
+    private bool isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get the authentication state
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        // Check if the user is authenticated
+        isAuthenticated = user.Identity.IsAuthenticated;
+
+        // If the user is not authenticated, redirect to the login page
+        if (!isAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+        }
+        else
+        {
+            Navigation.NavigateTo("/dashboard");
+        }
+    }
+}

@@ -1,0 +1,9 @@
+﻿<MudPaper Class="pa-4" MaxWidth="MaxWidth.Medium" Style="width: 500px;">
+        <MudText>Are you sure you want to delete this user?</MudText>
+        <MudButton Style="margin-top:20px;" OnClick="() => MudDialog.Cancel()" Color="Color.Secondary">Cancel</MudButton>
+        <MudButton Style="margin-top:20px;" OnClick="() => MudDialog.Close()" Color="Color.Error">Delete</MudButton>
+</MudPaper>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = new();
+}

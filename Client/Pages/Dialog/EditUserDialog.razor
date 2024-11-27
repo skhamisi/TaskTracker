@@ -1,0 +1,36 @@
+﻿@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4" MaxWidth="MaxWidth.Medium" Style="width: 500px;">
+        <MudText Typo="Typo.h6" Style="margin-bottom:20px;">Edit User</MudText>
+        <MudTextField Label="Username" @bind-Value="User.UserName" FullWidth="true" />
+        <MudTextField Label="Password" @bind-Value="User.Password" InputType="InputType.Password" HelperText="Leave blank to keep current password" FullWidth="true" />
+        @if (isAdmin)
+        {
+            <MudCheckBox T="bool" @bind-Value="User.IsAdmin">Admin User</MudCheckBox>
+        }
+    <MudButton Style="margin-top:20px;" OnClick="Save" Color="Color.Secondary">Save</MudButton>
+    <MudButton Style="margin-top:20px;" OnClick="Cancel" Color="Color.Error">Cancel</MudButton>
+</MudPaper>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public UserDto User { get; set; }
+    [Parameter] public bool isAdmin { get; set; }
+
+    private void Save()
+    {
+        if (string.IsNullOrWhiteSpace(User.UserName))
+        {
+            Snackbar.Add("Username is required.", Severity.Error);
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(User));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
