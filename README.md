@@ -15,6 +15,11 @@
 1. Run: `docker compose up -d --build`
 1. Open a browser and navigate to '[http://localhost:5168](http://localhost:5168/)'
 
-Initial Credentials:
+### Initial Credentials:
 - Username: admin
 - Password: Password123!
+
+## Hosted Site
+1. Reach out to an admin and request an account. 
+1. Navigate to [https://mytasktrackerpro.site](https://mytasktrackerpro.site)
+1. Use assigned credentials to log in
