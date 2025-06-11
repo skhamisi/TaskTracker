@@ -1,5 +1,7 @@
 # Task Tracker System
 
+A full CRUD application, including login, adding/deleting users, updating user information, admin/user credentials, adding tasks, editing tasks, viewing current tasks, completing tasks, receiving notification on pending/complete tasks, completion percentages of tasks. 
+
 ## Requirements
 1. [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
 1. [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.4)
