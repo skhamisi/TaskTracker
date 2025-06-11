@@ -15,7 +15,7 @@ A full CRUD application, including login, adding/deleting users, updating user i
 1. Ensure that there is an image named 'tasktrackerdev' with a tag of 'latest'
 1. Use the same powershell window or open another window and navigate to the project root
 1. Run: `docker compose up -d --build`
-1. Open a browser and navigate to '[http://localhost:5168](http://localhost:5168/)'
+1. Open a browser and navigate to `http://localhost:5168`
 
 ### Initial Credentials:
 - Username: admin
